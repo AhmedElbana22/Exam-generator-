@@ -1,0 +1,27 @@
+# Environment
+.env
+__pycache__/
+*.pyc
+*.pyo
+
+# Conda / venv
+env/
+venv/
+*.egg-info/
+
+# Data & models
+data/
+*.faiss
+*.pkl
+*.pt
+*.bin
+
+# Jupyter
+.ipynb_checkpoints/
+
+# VS Code
+.vscode/
+
+# OS
+.DS_Store
+Thumbs.db
