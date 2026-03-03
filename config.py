@@ -15,7 +15,7 @@ class AppConfig:
 
     def _initialize(self):
         self.HF_TOKEN = os.getenv("HF_TOKEN", "")
-        self.LLM_MODEL = "Qwen/Qwen3.5-35B-A3B"
+        self.LLM_MODEL = "Qwen/Qwen2.5-72B-Instruct"
         self.EMBED_MODEL = "sentence-transformers/all-MiniLM-L6-v2"
         self.SMALL_MODEL = "Qwen/Qwen3-1.7B"
 
