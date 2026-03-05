@@ -19,6 +19,8 @@ class AppConfig:
         self.EMBED_MODEL = "sentence-transformers/all-MiniLM-L6-v2"
         self.SMALL_MODEL = "Qwen/Qwen3-1.7B"
 
+        self.FINE_TUNED_MODEL = "Elbana22/imtiqan-qwen-1.7b-quiz-lora"
+        
         self.CHUNK_SIZE = 500
         self.CHUNK_OVERLAP = 50
         self.TOP_K_RETRIEVAL = 3
