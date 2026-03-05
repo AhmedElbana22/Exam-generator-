@@ -55,6 +55,8 @@
 
 > Paste any text or upload a PDF → configure your quiz → start learning!
 
+## 🚀 Start here
+
 ### 1 — Clone the repo
 
 ```bash
