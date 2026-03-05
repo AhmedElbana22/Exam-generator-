@@ -49,7 +49,11 @@
 
 ---
 
-## 🚀 Quick Start
+## 🚀 Live Demo
+
+👉 **[Try ImtiQan here](https://YOUR-APP-URL.streamlit.app)**
+
+> Paste any text or upload a PDF → configure your quiz → start learning!
 
 ### 1 — Clone the repo
 
