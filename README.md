@@ -6,45 +6,52 @@
 [![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 
 > **ImtiQan** (امتحان) means _exam_ in Arabic.  
-> An intelligent quiz generator that reads your study material and creates adaptive quizzes — getting harder as you improve and easier when you struggle.
+> Upload your study material, and ImtiQan generates quizzes from it — adapting difficulty based on how you're actually doing.
 
 ---
 
-## ✨ Features
+## ✨ What it does
 
-- 📄 **RAG Pipeline** — upload any PDF or paste text, questions generated from YOUR content
-- 🧠 **Adaptive Learning** — difficulty adjusts automatically based on your performance
-- ❓ **3 Question Types** — Multiple Choice, True/False, Short Answer
-- 🌍 **Bilingual** — English and Arabic support
-- 📊 **Performance Tracking** — weak topics, accuracy trends, session history
-- 🤖 **Fine-tuned Model** — Qwen3-1.7B fine-tuned on SQuAD v2 with QLoRA
+- 📄 **RAG Pipeline** — questions come strictly from your uploaded content, not from the model's memory
+- 🧠 **Adaptive difficulty** — promotes/demotes between easy → medium → hard based on your score per session
+- 🎲 **4 question modes** — MCQ, True/False, Short Answer, or Mixed (all three in one quiz)
+- 🧑‍🏫 **Teacher Agent** — ask a follow-up on any quiz item and get a contextual explanation
+- 🔁 **No repeated questions** — SHA-1 fingerprinting + sentence-transformer semantic dedup across sessions
+- 🌍 **Bilingual** — English and Arabic
+- 📊 **Performance tracking** — weak topics, accuracy per difficulty, session history
 
 ---
 
 ## 🏗️ Architecture
 
 ```
-┌─────────────────────────────────────────────────────┐
-│                   Streamlit UI                      │
-│         home_view / quiz_view / results_view        │
-└───────────────────┬─────────────────────────────────┘
-                    │
-┌───────────────────▼─────────────────────────────────┐
-│              AdaptiveController                     │
-│   tracks performance → adjusts difficulty           │
-└───────────────────┬─────────────────────────────────┘
-                    │
-┌───────────────────▼─────────────────────────────────┐
-│               QuizController                        │
-│   RAG retrieve → PromptBuilder → LLM → Quiz object  │
-└──────┬──────────────────────────────────┬───────────┘
+┌──────────────────────────────────────────────────────────────┐
+│                        Streamlit UI                          │
+│            home_view / quiz_view / results_view              │
+└────────────────────────┬─────────────────────────────────────┘
+                         │
+┌────────────────────────▼─────────────────────────────────────┐
+│                   AdaptiveController                         │
+│   tracks performance → adjusts difficulty → manages seen-Q   │
+└────────────────────────┬─────────────────────────────────────┘
+                         │
+┌────────────────────────▼─────────────────────────────────────┐
+│                    QuizController                            │
+│   RAG → PromptBuilder → LLM → parse → dedup → Quiz object   │
+└──────┬──────────────────────────────────┬────────────────────┘
        │                                  │
-┌──────▼───────┐                  ┌───────▼─────────┐
-│ RAGController│                  │  HFApiService   │
-│ Text→Chunks  │                  │  Qwen2.5-72B    │
-│ →Embeddings  │                  │  via HF API     │
-│ →FAISS       │                  └─────────────────┘
-└──────────────┘
+┌──────▼───────────┐             ┌────────▼────────┐
+│  RAGController   │             │  HFApiService   │
+│  Text → Chunks   │             │  Qwen2.5-72B    │
+│  → Embeddings    │             │  retry + backoff│
+│  → FAISS + MMR   │             └─────────────────┘
+│  + chunk rotation│
+└──────────────────┘
+                         │
+┌────────────────────────▼─────────────────────────────────────┐
+│                    TeacherService                            │
+│   per-question chat agent · rolling history · RAG-grounded   │
+└──────────────────────────────────────────────────────────────┘
 ```
 
 ---
@@ -53,51 +60,45 @@
 
 👉 **[Try ImtiQan here](https://ahmedelbana22-exam-generator--app-duwoyf.streamlit.app/)**
 
-> Paste any text or upload a PDF → configure your quiz → start learning!
+> Paste any text or upload a PDF → configure your quiz → start learning.
 
-## 🚀 Start here
+---
 
-### 1 — Clone the repo
+## 🔧 Run locally
+
+### 1 — Clone
 
 ```bash
 git clone https://github.com/AhmedElbana22/Exam-generator-.git
 cd Exam-generator-
 ```
 
-### 2 — Create conda environment
+### 2 — Environment
 
 ```bash
-conda create -n quizforge python=3.10
-conda activate quizforge
+conda create -n imtiqan python=3.10
+conda activate imtiqan
 pip install -r requirements.txt
 ```
 
-### 3 — Set up environment variables
+### 3 — API token
 
 ```bash
 cp .env.example .env
-# Edit .env and add your HuggingFace token
+# add your HuggingFace token to .env
 ```
-
-### 4 — Run the app
-
-```bash
-streamlit run app.py
-```
-
-Open `http://localhost:8501` in your browser.
-
----
-
-## 🔑 Environment Variables
-
-Create a `.env` file in the project root:
 
 ```
 HF_TOKEN=your_huggingface_read_token_here
 ```
 
-Get your token at: https://huggingface.co/settings/tokens
+Get yours at: https://huggingface.co/settings/tokens
+
+### 4 — Start
+
+```bash
+streamlit run app.py
+```
 
 ---
 
@@ -106,29 +107,30 @@ Get your token at: https://huggingface.co/settings/tokens
 ```
 Exam-generator-/
 ├── model/
-│   ├── question_model.py      # Question dataclass
-│   ├── quiz_model.py          # Quiz session + evaluation
-│   └── user_model.py          # Performance tracking
+│   ├── question_model.py       # Question dataclass + SHA-1 fingerprint
+│   ├── quiz_model.py           # Quiz session, evaluation, type breakdown
+│   └── user_model.py           # Performance tracking per topic/difficulty
 ├── controller/
-│   ├── rag_controller.py      # RAG pipeline
-│   ├── quiz_controller.py     # Quiz generation
-│   ├── adaptive_controller.py # Adaptive difficulty engine
-│   └── evaluation_controller.py # BLEU/ROUGE metrics
+│   ├── rag_controller.py       # RAG + MMR reranking + chunk rotation
+│   ├── quiz_controller.py      # Generation pipeline + semantic dedup
+│   ├── adaptive_controller.py  # Difficulty engine + seen-Q persistence
+│   └── evaluation_controller.py
 ├── view/
-│   ├── home_view.py           # Upload + settings page
-│   ├── quiz_view.py           # Question display
-│   └── results_view.py        # Score + recommendations
+│   ├── home_view.py            # Upload, settings, mixed-type preview
+│   ├── quiz_view.py            # Question UI + inline feedback + Teacher panel
+│   └── results_view.py         # Score, type breakdown, full review
 ├── services/
-│   ├── text_processor.py      # PDF/text extraction
-│   ├── embedding_service.py   # sentence-transformers
-│   ├── vector_store.py        # FAISS index
-│   ├── hf_api_service.py      # HuggingFace API
-│   └── prompt_builder.py      # Prompt engineering
+│   ├── text_processor.py       # PDF/text extraction + chunking
+│   ├── embedding_service.py    # sentence-transformers
+│   ├── vector_store.py         # FAISS index
+│   ├── hf_api_service.py       # HF API + retry/backoff + streaming
+│   ├── prompt_builder.py       # Bloom's Taxonomy prompt engineering
+│   └── teacher_service.py      # Teacher agent with conversation history
 ├── notebooks/
 │   └── 02_fine_tuning_qwen_1.7B.ipynb
-├── tests/                     # Full test suite
-├── app.py                     # Streamlit entry point
-├── config.py                  # Singleton configuration
+├── tests/
+├── app.py
+├── config.py
 └── requirements.txt
 ```
 
@@ -136,53 +138,82 @@ Exam-generator-/
 
 ## 🧠 Design Patterns
 
-| Pattern   | File                | Purpose                          |
-| --------- | ------------------- | -------------------------------- |
-| Singleton | `config.py`         | One config instance app-wide     |
-| Builder   | `prompt_builder.py` | Step-by-step prompt construction |
-| MVC       | whole architecture  | Separation of concerns           |
-| Strategy  | `hf_api_service.py` | Swap LLM backends easily         |
+| Pattern   | Where               | Why                                     |
+| --------- | ------------------- | --------------------------------------- |
+| Singleton | `config.py`         | One config instance shared across app   |
+| Builder   | `prompt_builder.py` | Composable prompt construction per type |
+| MVC       | whole architecture  | Clean separation between logic and UI   |
+| Strategy  | `hf_api_service.py` | LLM backend can be swapped easily       |
 
 ---
 
-## 🤖 Models Used
+## 🤖 Models
 
-| Model                                    | Purpose                    | Size |
-| ---------------------------------------- | -------------------------- | ---- |
-| `Qwen/Qwen2.5-72B-Instruct`              | Quiz generation via HF API | 72B  |
-| `sentence-transformers/all-MiniLM-L6-v2` | Text embeddings            | 80MB |
-| `Elbana22/imtiqan-qwen-1.7b-quiz-lora`   | Fine-tuned quiz model      | 1.7B |
+| Model                                    | Purpose                              | Size |
+| ---------------------------------------- | ------------------------------------ | ---- |
+| `Qwen/Qwen2.5-72B-Instruct`              | Quiz generation via HF Inference API | 72B  |
+| `sentence-transformers/all-MiniLM-L6-v2` | Embeddings for RAG + semantic dedup  | 80MB |
+| `Elbana22/imtiqan-qwen-1.7b-quiz-lora`   | Fine-tuned quiz model (QLoRA)        | 1.7B |
 
 ---
 
-## 📊 Adaptive Learning Logic
+## 📊 How adaptation works
 
 ```
-Score >= 80%  →  promote difficulty   easy → medium → hard
-Score <= 40%  →  demote difficulty    hard → medium → easy
-40% < score < 80%  →  stay at current level
+score >= 80%          →  promote:   easy → medium → hard
+score <= 40%          →  demote:    hard → medium → easy
+40% < score < 80%     →  stay at current level
+
+weak topics           →  next quiz targets those first
+seen questions        →  fingerprinted + embedding-checked, never repeated
 ```
+
+Difficulty isn't just a label — it maps to a Bloom's Taxonomy cognitive level:
+
+| Level  | Bloom's Target        | Example stem                                              |
+| ------ | --------------------- | --------------------------------------------------------- |
+| Easy   | Remember / Understand | "What is...", "Identify..."                               |
+| Medium | Apply / Analyze       | "How does...", "What would happen if..."                  |
+| Hard   | Evaluate / Create     | "Compare and contrast...", "What is the limitation of..." |
 
 ---
 
-## 🧪 Running Tests
+## 🔁 Deduplication
+
+Two layers prevent repeated questions across sessions:
+
+1. **SHA-1 fingerprint** — hashes `(question + answer)`, catches exact and near-exact repeats
+2. **Semantic similarity** — embeds question text and rejects anything with cosine similarity ≥ 0.82 to a previously seen question
+
+Both layers persist to disk between sessions.
+
+---
+
+## 🗂️ RAG — how context is selected
+
+- Document split into overlapping chunks and indexed in FAISS
+- Query rewritten based on difficulty before retrieval (different semantic region per level)
+- **MMR (Maximal Marginal Relevance)** re-ranks candidates to balance relevance vs diversity
+- **Chunk rotation** tracks used chunks and deprioritises them in future quizzes
+
+---
+
+## 🧪 Tests
 
 ```bash
 pytest tests/ -v
 ```
 
-All 7 test files, 30+ test cases.
-
 ---
 
 ## 📓 Fine-Tuning
 
-Model fine-tuned using QLoRA on SQuAD v2:
+Fine-tuned on SQuAD v2 using QLoRA:
 
-- Base: `Qwen/Qwen3-1.7B`
+- Base model: `Qwen/Qwen3-1.7B`
 - Method: 4-bit quantization + LoRA adapters
-- Dataset: 2,000 SQuAD v2 samples
-- GPU: T4 (Google Colab)
+- Dataset: 2,000 samples
+- Hardware: T4 on Google Colab
 - Published: [Elbana22/imtiqan-qwen-1.7b-quiz-lora](https://huggingface.co/Elbana22/imtiqan-qwen-1.7b-quiz-lora)
 
 ---
@@ -197,4 +228,4 @@ HuggingFace: [@Elbana22](https://huggingface.co/Elbana22)
 
 ## 📄 License
 
-MIT License — free to use, modify, and distribute.
+MIT — do whatever you want with it.
